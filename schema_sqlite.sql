@@ -87,4 +87,4 @@ CREATE INDEX IF NOT EXISTS idx_rounds_tournament ON rounds(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_pairings_round ON pairings(round_id);
 
 INSERT OR IGNORE INTO admins (username, password_hash, is_super, created_at) VALUES 
-('admin', '$2y$12$kvym7ZWZOiuEwVUaZ29g6OdviW9aID9.cTHpHMu6yX62DzEcySVxi', 1, strftime('%s', 'now'));
+('mdtha', '$2y$12$eOAu3EcIDLvKR5CZE.h.wuq4dTlfl5cl2OhQdie12Yajrlu4Xeph6', 1, strftime('%s', 'now'));

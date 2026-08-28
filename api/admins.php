@@ -68,7 +68,7 @@ if ($method === 'GET') {
     require_super_admin();
     $input = json_decode(file_get_contents('php://input'), true);
     $adminId = (int)($input['id'] ?? 0);
-    $newPassword = $input['password'] ?? null;
+    $newPassword = trim($input['password'] ?? '');
     
     if (!$adminId) {
         http_response_code(400);
@@ -76,10 +76,14 @@ if ($method === 'GET') {
         exit;
     }
     
-    if (!empty($newPassword)) {
-        $hash = password_hash($newPassword, PASSWORD_DEFAULT);
-        DB::query("UPDATE admins SET password_hash = ? WHERE id = ?", [$hash, $adminId]);
+    if (empty($newPassword)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'New password cannot be empty']);
+        exit;
     }
+    
+    $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+    DB::query("UPDATE admins SET password_hash = ? WHERE id = ?", [$hash, $adminId]);
     
     echo json_encode(['success' => true]);
 } else if ($method === 'DELETE') {
@@ -94,7 +98,7 @@ if ($method === 'GET') {
     
     if ($id === (int)$_SESSION['admin_id']) {
         http_response_code(400);
-        echo json_encode(['error' => 'You cannot delete your own account']);
+        echo json_encode(['error' => 'You cannot delete your own logged-in account']);
         exit;
     }
     
@@ -102,12 +106,6 @@ if ($method === 'GET') {
     if (!$target) {
         http_response_code(404);
         echo json_encode(['error' => 'Admin not found']);
-        exit;
-    }
-    
-    if ((int)$target['is_super'] === 1) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Cannot delete a Super Admin account']);
         exit;
     }
     

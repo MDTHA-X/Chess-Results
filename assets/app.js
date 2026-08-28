@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="grid grid-cols-2 mb-4" style="align-items: start;">
                 <!-- Create Admin Card -->
                 <div class="card">
-                    <h3 class="mb-4">Create New Arbiter</h3>
+                    <h3 class="mb-4">Create New Admin / Arbiter</h3>
                     <form id="createAdminForm">
                         <div class="form-group">
                             <label class="form-label">Username</label>
@@ -98,8 +98,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             <input type="password" id="newAdminPassword" class="form-control" required placeholder="••••••••">
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Role</label>
+                            <select id="newAdminRole" class="form-control">
+                                <option value="0">Arbiter (Assigned Tournaments Only)</option>
+                                <option value="1">Super Admin (Full System Access)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="assignTourneysGroup">
                             <label class="form-label">Assign Tournaments (Optional)</label>
-                            <div style="max-height: 150px; overflow-y: auto; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem;">
+                            <div style="max-height: 140px; overflow-y: auto; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem;">
                                 ${tournaments.length === 0 ? '<span class="text-muted" style="font-size: 0.85rem;">No tournaments created yet</span>' : tournaments.map(t => `
                                     <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; font-size: 0.9rem; cursor: pointer;">
                                         <input type="checkbox" class="assign-tourney-cb" value="${t.id}">
@@ -108,21 +115,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                 `).join('')}
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary" style="width: 100%;">Create Arbiter</button>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
                     </form>
                 </div>
 
                 <!-- Admin List Card -->
                 <div class="card">
-                    <h3 class="mb-4">Registered Admins (${admins.length})</h3>
+                    <h3 class="mb-4">Registered Admins & Arbiters (${admins.length})</h3>
                     <div class="table-container">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Admin</th>
+                                    <th>User</th>
                                     <th>Role</th>
-                                    <th>Assigned Tournaments</th>
-                                    <th>Action</th>
+                                    <th>Assigned</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -136,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <tr>
                                             <td>
                                                 <strong>${a.username}</strong>
-                                                ${isSelf ? ' <span class="text-muted">(You)</span>' : ''}
+                                                ${isSelf ? ' <span class="text-muted" style="font-size: 0.8rem;">(You)</span>' : ''}
                                             </td>
                                             <td>
                                                 <span class="badge ${a.is_super ? 'badge-completed' : 'badge-draft'}">
@@ -145,11 +152,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </td>
                                             <td>${tourneysList}</td>
                                             <td>
-                                                ${!a.is_super && !isSelf ? `
-                                                    <button class="btn btn-outline btn-sm btn-delete-admin" style="border-color: #ef4444; color: #ef4444;" data-id="${a.id}" data-name="${a.username}">
+                                                <button class="btn btn-outline btn-sm btn-change-password" data-id="${a.id}" data-name="${a.username}" style="margin-right: 0.35rem;" title="Change Password">
+                                                    Password
+                                                </button>
+                                                ${!isSelf ? `
+                                                    <button class="btn btn-outline btn-sm btn-delete-admin" style="border-color: #ef4444; color: #ef4444;" data-id="${a.id}" data-name="${a.username}" title="Delete Account">
                                                         Delete
                                                     </button>
-                                                ` : '<span class="text-muted" style="font-size: 0.8rem;">Protected</span>'}
+                                                ` : '<span class="text-muted" style="font-size: 0.8rem;">Active</span>'}
                                             </td>
                                         </tr>
                                     `;
@@ -168,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const username = document.getElementById('newAdminUsername').value.trim();
             const password = document.getElementById('newAdminPassword').value;
+            const isSuper = parseInt(document.getElementById('newAdminRole').value) || 0;
             const selectedTourneys = Array.from(document.querySelectorAll('.assign-tourney-cb:checked')).map(cb => parseInt(cb.value));
 
             const res = await fetch('api/admins.php', {
@@ -176,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     username,
                     password,
+                    is_super: isSuper,
                     tournament_ids: selectedTourneys
                 })
             });
@@ -188,12 +200,38 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Bind change password buttons
+        document.querySelectorAll('.btn-change-password').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const admId = btn.dataset.id;
+                const admName = btn.dataset.name;
+                const newPass = prompt(`Enter new password for "${admName}":`);
+                if (!newPass || !newPass.trim()) return;
+
+                const res = await fetch('api/admins.php', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        id: parseInt(admId),
+                        password: newPass.trim()
+                    })
+                });
+
+                if (res.ok) {
+                    alert(`Password updated successfully for "${admName}"!`);
+                } else {
+                    const err = await res.json();
+                    alert('Error updating password: ' + (err.error || 'Unknown error'));
+                }
+            });
+        });
+
         // Bind delete buttons
         document.querySelectorAll('.btn-delete-admin').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const admId = btn.dataset.id;
                 const admName = btn.dataset.name;
-                if (!confirm(`Are you sure you want to delete arbiter "${admName}"?`)) return;
+                if (!confirm(`Are you sure you want to delete admin account "${admName}"?`)) return;
 
                 const res = await fetch(`api/admins.php?id=${admId}`, {
                     method: 'DELETE'

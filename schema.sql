@@ -87,7 +87,7 @@ CREATE INDEX idx_players_tournament ON players(tournament_id);
 CREATE INDEX idx_rounds_tournament ON rounds(tournament_id);
 CREATE INDEX idx_pairings_round ON pairings(round_id);
 
--- Default admin user: password 'admin'
--- password_hash is generated with PHP password_hash('admin', PASSWORD_DEFAULT)
+-- Default admin user: mdtha / mdtha
+-- password_hash is generated with PHP password_hash('mdtha', PASSWORD_DEFAULT)
 INSERT IGNORE INTO admins (username, password_hash, is_super, created_at) VALUES 
-('admin', '$2y$12$kvym7ZWZOiuEwVUaZ29g6OdviW9aID9.cTHpHMu6yX62DzEcySVxi', 1, UNIX_TIMESTAMP());
+('mdtha', '$2y$12$eOAu3EcIDLvKR5CZE.h.wuq4dTlfl5cl2OhQdie12Yajrlu4Xeph6', 1, UNIX_TIMESTAMP());
