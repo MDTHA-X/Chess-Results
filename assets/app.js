@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         function renderStandingsTable(stList) {
             let sHtml = `<div class="card table-container"><table>
                 <thead><tr>
-                    <th>Rk</th><th>SNo</th><th>Title</th><th>Name</th><th>Rating</th><th>Pts</th><th>BH-1</th><th>BH</th><th>SB</th>
+                    <th>Rk</th><th>SNo</th><th>Title</th><th>Name</th><th>Rating</th><th>Pts</th><th>BH-1</th><th>BH</th><th>SB</th><th>Vict</th><th>TPR</th>
                 </tr></thead><tbody>`;
             stList.forEach((st, i) => {
                 const pl = players.find(x => x.id == st.playerId) || {};
@@ -232,9 +232,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${st.medianBuchholz}</td>
                     <td>${st.buchholz}</td>
                     <td>${st.sonnebornBerger ?? 0}</td>
+                    <td>${st.wins ?? 0}</td>
+                    <td>${st.tpr || '-'}</td>
                 </tr>`;
             });
-            if (stList.length === 0) sHtml += `<tr><td colspan="9" class="text-center text-muted">No standings available yet</td></tr>`;
+            if (stList.length === 0) sHtml += `<tr><td colspan="11" class="text-center text-muted">No standings available yet</td></tr>`;
             sHtml += `</tbody></table></div>`;
             return sHtml;
         }
