@@ -1,5 +1,13 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/auth.php';
+
+// Auto-sync is_super for active sessions
+if (isset($_SESSION['admin_id'])) {
+    $adm = DB::fetch("SELECT is_super FROM admins WHERE id = ?", [$_SESSION['admin_id']]);
+    if ($adm) {
+        $_SESSION['is_super'] = (int)$adm['is_super'];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">

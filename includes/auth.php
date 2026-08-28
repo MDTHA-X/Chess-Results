@@ -31,6 +31,13 @@ function require_login() {
 }
 
 function is_super_admin() {
+    if (!isset($_SESSION['admin_id'])) return false;
+    if (!isset($_SESSION['is_super'])) {
+        $adm = DB::fetch("SELECT is_super FROM admins WHERE id = ?", [$_SESSION['admin_id']]);
+        if ($adm) {
+            $_SESSION['is_super'] = (int)$adm['is_super'];
+        }
+    }
     return !empty($_SESSION['is_super']);
 }
 
