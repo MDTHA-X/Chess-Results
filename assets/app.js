@@ -214,10 +214,10 @@ document.addEventListener('DOMContentLoaded', () => {
             render();
         }
 
-        function renderStandingsTable(stList) {
+        function renderStandingsTable(stList, showTpr = false) {
             let sHtml = `<div class="card table-container"><table>
                 <thead><tr>
-                    <th>Rk</th><th>SNo</th><th>Title</th><th>Name</th><th>Rating</th><th>Pts</th><th>BH-1</th><th>BH</th><th>SB</th><th>Vict</th><th>TPR</th>
+                    <th>Rk</th><th>SNo</th><th>Title</th><th>Name</th><th>Rating</th><th>Pts</th><th>BH-1</th><th>BH</th><th>SB</th><th>Vict</th>${showTpr ? '<th>TPR</th>' : ''}
                 </tr></thead><tbody>`;
             stList.forEach((st, i) => {
                 const pl = players.find(x => x.id == st.playerId) || {};
@@ -233,10 +233,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${st.buchholz}</td>
                     <td>${st.sonnebornBerger ?? 0}</td>
                     <td>${st.wins ?? 0}</td>
-                    <td>${st.tpr || '-'}</td>
+                    ${showTpr ? `<td>${st.tpr || '-'}</td>` : ''}
                 </tr>`;
             });
-            if (stList.length === 0) sHtml += `<tr><td colspan="11" class="text-center text-muted">No standings available yet</td></tr>`;
+            const colSpan = showTpr ? 11 : 10;
+            if (stList.length === 0) sHtml += `<tr><td colspan="${colSpan}" class="text-center text-muted">No standings available yet</td></tr>`;
             sHtml += `</tbody></table></div>`;
             return sHtml;
         }
@@ -390,7 +391,8 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             if (activeTab === 'standings') {
-                html += renderStandingsTable(mainStandings);
+                const isFinished = rounds.length >= t.rounds_count && rounds.length > 0 && rounds[rounds.length - 1].status === 'completed';
+                html += renderStandingsTable(mainStandings, isFinished);
             } else if (activeTab === 'rounds') {
                 html += `<div class="card mb-4 flex justify-between items-center">
                     <h3 class="mt-4">Pairings & Results</h3>
