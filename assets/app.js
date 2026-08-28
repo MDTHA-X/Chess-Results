@@ -313,21 +313,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h1>Tournaments</h1>
                 ${window.isAdmin ? '<a href="#new-tournament" class="btn btn-primary">+ New Tournament</a>' : ''}
             </div>
-            <div class="grid grid-cols-2">
+            <div class="flex" style="flex-direction: column; gap: 1rem;">
         `;
 
         if (tournaments.length === 0) {
-            html += `<div class="card" style="grid-column: 1/-1;"><p class="text-muted text-center">No tournaments found.</p></div>`;
+            html += `<div class="card"><p class="text-muted text-center">No tournaments found.</p></div>`;
         } else {
             tournaments.forEach(t => {
                 html += `
-                    <a href="#tournament/${t.id}" class="card" style="display: block; transition: transform 0.2s;">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 style="color: var(--text-main);">${t.name}</h3>
+                    <a href="#tournament/${t.id}" class="card" style="display: block; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s;">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 style="color: var(--text-main); margin: 0; font-size: 1.15rem;">${t.name}</h3>
                             <span class="badge badge-${t.status}">${t.status}</span>
                         </div>
-                        <p style="color: var(--text-muted); font-size: 0.9rem;">
-                            Rounds: ${t.rounds_count} | Time: ${t.time_control}
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+                            Rounds: ${t.rounds_count} &nbsp;&bull;&nbsp; Time Control: ${t.time_control}
                         </p>
                     </a>
                 `;
