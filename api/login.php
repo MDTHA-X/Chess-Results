@@ -19,9 +19,13 @@ if ($method === 'POST') {
 } else if ($method === 'DELETE') {
     logout();
     echo json_encode(['success' => true]);
-} else if ($method === 'GET') {
     if (current_admin_id()) {
-        echo json_encode(['logged_in' => true, 'username' => $_SESSION['username']]);
+        echo json_encode([
+            'logged_in' => true,
+            'id' => $_SESSION['admin_id'],
+            'username' => $_SESSION['username'],
+            'is_super' => !empty($_SESSION['is_super'])
+        ]);
     } else {
         echo json_encode(['logged_in' => false]);
     }

@@ -43,7 +43,6 @@ if ($method === 'GET') {
     
     echo json_encode($rounds);
 } else if ($method === 'POST') {
-    require_login();
     $input = json_decode(file_get_contents('php://input'), true);
     $action = $input['action'] ?? null;
     $tournament_id = $input['tournament_id'] ?? null;
@@ -53,6 +52,8 @@ if ($method === 'GET') {
         echo json_encode(['error' => 'tournament_id is required']);
         exit;
     }
+    
+    require_tournament_admin($tournament_id);
     
     if ($action === 'generate') {
         $tournament = DB::fetch("SELECT * FROM tournaments WHERE id = ?", [$tournament_id]);

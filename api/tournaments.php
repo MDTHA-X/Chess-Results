@@ -15,17 +15,71 @@ if ($method === 'GET') {
             echo json_encode(['error' => 'Not found']);
             exit;
         }
+        $tId = (int)$tournament['id'];
+        $tournament['can_manage'] = can_manage_tournament($tId);
+        $tournament['admins'] = DB::fetchAll("SELECT a.id, a.username FROM tournament_admins ta JOIN admins a ON ta.admin_id = a.id WHERE ta.tournament_id = ?", [$tId]);
         echo json_encode($tournament);
     } else if ($id) {
         $tournament = DB::fetch("SELECT * FROM tournaments WHERE id = ?", [$id]);
+        if (!$tournament) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Not found']);
+            exit;
+        }
+        $tId = (int)$tournament['id'];
+        $tournament['can_manage'] = can_manage_tournament($tId);
+        $tournament['admins'] = DB::fetchAll("SELECT a.id, a.username FROM tournament_admins ta JOIN admins a ON ta.admin_id = a.id WHERE ta.tournament_id = ?", [$tId]);
         echo json_encode($tournament);
     } else {
         $tournaments = DB::fetchAll("SELECT * FROM tournaments ORDER BY created_at DESC");
+        foreach ($tournaments as &$t) {
+            $t['can_manage'] = can_manage_tournament((int)$t['id']);
+        }
+        unset($t);
         echo json_encode($tournaments);
     }
 } else if ($method === 'POST') {
     require_login();
     $input = json_decode(file_get_contents('php://input'), true);
+    $action = $input['action'] ?? 'create';
+
+    if ($action === 'assign_admin') {
+        $tournament_id = (int)($input['tournament_id'] ?? 0);
+        $admin_id = (int)($input['admin_id'] ?? 0);
+        
+        require_tournament_admin($tournament_id);
+        
+        if (!$tournament_id || !$admin_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Tournament ID and Admin ID are required']);
+            exit;
+        }
+        
+        try {
+            DB::query("INSERT OR IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$tournament_id, $admin_id, time()]);
+        } catch (\Exception $e) {
+            DB::query("INSERT IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$tournament_id, $admin_id, time()]);
+        }
+        
+        echo json_encode(['success' => true]);
+        exit;
+    } else if ($action === 'remove_admin') {
+        $tournament_id = (int)($input['tournament_id'] ?? 0);
+        $admin_id = (int)($input['admin_id'] ?? 0);
+        
+        require_tournament_admin($tournament_id);
+        
+        if (!$tournament_id || !$admin_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Tournament ID and Admin ID are required']);
+            exit;
+        }
+        
+        DB::query("DELETE FROM tournament_admins WHERE tournament_id = ? AND admin_id = ?", [$tournament_id, $admin_id]);
+        echo json_encode(['success' => true]);
+        exit;
+    }
+
     $name = $input['name'] ?? '';
     $slug = $input['slug'] ?? '';
     $type = $input['type'] ?? 'intradept';
@@ -45,10 +99,18 @@ if ($method === 'GET') {
             [$name, $slug, $type, $time_control, $rounds_count, $admin_id, time()]
         );
         $id = DB::get()->lastInsertId();
-        echo json_encode(DB::fetch("SELECT * FROM tournaments WHERE id = ?", [$id]));
+        try {
+            DB::query("INSERT OR IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$id, $admin_id, time()]);
+        } catch (\Exception $e) {
+            DB::query("INSERT IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$id, $admin_id, time()]);
+        }
+        
+        $created = DB::fetch("SELECT * FROM tournaments WHERE id = ?", [$id]);
+        $created['can_manage'] = true;
+        echo json_encode($created);
     } catch (Exception $e) {
         http_response_code(400);
-        echo json_encode(['error' => 'Slug already exists or database error']);
+        echo json_encode(['error' => 'Slug already exists or database error: ' . $e->getMessage()]);
     }
 } else {
     http_response_code(405);

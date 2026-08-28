@@ -46,6 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
             renderLogin();
         } else if (hash === '#tournaments') {
             renderTournaments();
+        } else if (hash === '#admins') {
+            if (!window.isSuper) {
+                window.location.hash = '#tournaments';
+                return;
+            }
+            renderAdmins();
         } else if (hash === '#new-tournament') {
             renderNewTournament();
         } else if (hash.startsWith('#tournament/')) {
@@ -54,6 +60,153 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             appRoot.innerHTML = '<div class="card text-center"><h1>404 Not Found</h1></div>';
         }
+    }
+
+    async function renderAdmins() {
+        const [adminsRes, tourneysRes] = await Promise.all([
+            fetch('api/admins.php'),
+            fetch('api/tournaments.php')
+        ]);
+        
+        if (!adminsRes.ok) {
+            appRoot.innerHTML = '<div class="card text-center"><h1>Access Denied</h1><p class="text-muted">You must be a Super Admin to view this page.</p></div>';
+            return;
+        }
+
+        const admins = await adminsRes.json();
+        const tournaments = await tourneysRes.json();
+
+        let html = `
+            <div class="page-header">
+                <div>
+                    <h1>Admin & Arbiter Management</h1>
+                    <p class="text-muted mt-2">Create arbiters and manage tournament permissions.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 mb-4" style="align-items: start;">
+                <!-- Create Admin Card -->
+                <div class="card">
+                    <h3 class="mb-4">Create New Arbiter</h3>
+                    <form id="createAdminForm">
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" id="newAdminUsername" class="form-control" required placeholder="e.g. arbiter_john">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" id="newAdminPassword" class="form-control" required placeholder="••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Assign Tournaments (Optional)</label>
+                            <div style="max-height: 150px; overflow-y: auto; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem;">
+                                ${tournaments.length === 0 ? '<span class="text-muted" style="font-size: 0.85rem;">No tournaments created yet</span>' : tournaments.map(t => `
+                                    <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; font-size: 0.9rem; cursor: pointer;">
+                                        <input type="checkbox" class="assign-tourney-cb" value="${t.id}">
+                                        ${t.name}
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Create Arbiter</button>
+                    </form>
+                </div>
+
+                <!-- Admin List Card -->
+                <div class="card">
+                    <h3 class="mb-4">Registered Admins (${admins.length})</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Admin</th>
+                                    <th>Role</th>
+                                    <th>Assigned Tournaments</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${admins.map(a => {
+                                    const isSelf = window.currentUser && window.currentUser.id === a.id;
+                                    const tourneysList = a.tournaments && a.tournaments.length > 0
+                                        ? a.tournaments.map(t => `<span class="badge" style="background: var(--bg-card-hover); margin: 2px 2px; font-size: 0.75rem;">${t.name}</span>`).join(' ')
+                                        : (a.is_super ? '<span class="text-muted" style="font-size: 0.8rem;">All Tournaments</span>' : '<span class="text-muted" style="font-size: 0.8rem;">None</span>');
+                                    
+                                    return `
+                                        <tr>
+                                            <td>
+                                                <strong>${a.username}</strong>
+                                                ${isSelf ? ' <span class="text-muted">(You)</span>' : ''}
+                                            </td>
+                                            <td>
+                                                <span class="badge ${a.is_super ? 'badge-completed' : 'badge-draft'}">
+                                                    ${a.is_super ? 'Super Admin' : 'Arbiter'}
+                                                </span>
+                                            </td>
+                                            <td>${tourneysList}</td>
+                                            <td>
+                                                ${!a.is_super && !isSelf ? `
+                                                    <button class="btn btn-outline btn-sm btn-delete-admin" style="border-color: #ef4444; color: #ef4444;" data-id="${a.id}" data-name="${a.username}">
+                                                        Delete
+                                                    </button>
+                                                ` : '<span class="text-muted" style="font-size: 0.8rem;">Protected</span>'}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        appRoot.innerHTML = html;
+
+        // Bind create form
+        document.getElementById('createAdminForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('newAdminUsername').value.trim();
+            const password = document.getElementById('newAdminPassword').value;
+            const selectedTourneys = Array.from(document.querySelectorAll('.assign-tourney-cb:checked')).map(cb => parseInt(cb.value));
+
+            const res = await fetch('api/admins.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username,
+                    password,
+                    tournament_ids: selectedTourneys
+                })
+            });
+
+            if (res.ok) {
+                renderAdmins();
+            } else {
+                const err = await res.json();
+                alert('Error creating admin: ' + (err.error || 'Unknown error'));
+            }
+        });
+
+        // Bind delete buttons
+        document.querySelectorAll('.btn-delete-admin').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const admId = btn.dataset.id;
+                const admName = btn.dataset.name;
+                if (!confirm(`Are you sure you want to delete arbiter "${admName}"?`)) return;
+
+                const res = await fetch(`api/admins.php?id=${admId}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    renderAdmins();
+                } else {
+                    const err = await res.json();
+                    alert('Error deleting admin: ' + (err.error || 'Unknown error'));
+                }
+            });
+        });
     }
 
     function renderLogin() {
@@ -374,6 +527,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('playerModal').style.display = 'block';
         }
         
+        const canManage = Boolean(window.isSuper || t.can_manage);
+
         function render() {
             let html = `
                 <div class="page-header">
@@ -387,6 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="tab ${activeTab === 'standings' ? 'active' : ''}" data-tab="standings">Standings</div>
                     <div class="tab ${activeTab === 'rounds' ? 'active' : ''}" data-tab="rounds">Rounds</div>
                     <div class="tab ${activeTab === 'players' ? 'active' : ''}" data-tab="players">Players</div>
+                    ${canManage ? `<div class="tab ${activeTab === 'arbiters' ? 'active' : ''}" data-tab="arbiters">Arbiters</div>` : ''}
                 </div>
             `;
 
@@ -396,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (activeTab === 'rounds') {
                 html += `<div class="card mb-4 flex justify-between items-center">
                     <h3 class="mt-4">Pairings & Results</h3>
-                    ${window.isAdmin && (rounds.length === 0 || rounds[rounds.length-1].status === 'completed') && rounds.length < t.rounds_count ? `<button id="btnGenerateRound" class="btn btn-primary">Generate Next Round</button>` : ''}
+                    ${canManage && (rounds.length === 0 || rounds[rounds.length-1].status === 'completed') && rounds.length < t.rounds_count ? `<button id="btnGenerateRound" class="btn btn-primary">Generate Next Round</button>` : ''}
                 </div>`;
                 
                 if (rounds.length > 0) {
@@ -435,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             let bName = p.is_bye ? formatPlayerName(p.bye_for_id) : formatPlayerName(p.black_id);
                             
                             let resultHtml = p.result || '-';
-                            if (r.status === 'draft' && !p.is_bye && window.isAdmin) {
+                            if (r.status === 'draft' && !p.is_bye && canManage) {
                                 resultHtml = `
                                     <select class="form-control result-select" data-pairing="${p.id}" style="width: 100px; padding: 0.2rem;">
                                         <option value="" ${!p.result ? 'selected' : ''}>-</option>
@@ -455,12 +611,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                         html += `</tbody></table></div>`;
                         
-                        if (r.status === 'draft' && window.isAdmin) {
+                        if (r.status === 'draft' && canManage) {
                             html += `<div class="flex" style="justify-content: space-between; margin-top: 1.5rem; align-items: center;">`;
                             html += `<button class="btn btn-outline btn-discard-round" style="border-color: #ef4444; color: #ef4444;" data-round="${r.id}">Undo Pairings</button>`;
                             html += `<button class="btn btn-success btn-complete-round" data-round="${r.id}">Complete Round ${r.number}</button>
                             </div>`;
-                        } else if (r.status === 'completed' && window.isAdmin && r.number === rounds[rounds.length - 1].number) {
+                        } else if (r.status === 'completed' && canManage && r.number === rounds[rounds.length - 1].number) {
                             html += `<div class="flex" style="justify-content: flex-end; margin-top: 1.5rem;">
                                 <button class="btn btn-outline btn-reopen-round" data-round="${r.id}">Reopen Round to Edit Results</button>
                             </div>`;
@@ -483,7 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     html += `<div class="card"><div class="text-center text-muted" style="padding: 2rem 0;">No rounds generated yet.</div></div>`;
                 }
             } else if (activeTab === 'players') {
-                if (window.isAdmin) {
+                if (canManage) {
                     if (rounds.length === 0) {
                         html += `<div class="card mb-4">
                             <h3 class="mb-4">Add Player</h3>
@@ -517,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 html += `<div class="card table-container"><table>
-                    <thead><tr><th>Name</th><th>Title</th><th>Sex</th><th>Batch</th><th>Rating</th><th>Active</th>${window.isAdmin ? '<th>Actions</th>' : ''}</tr></thead>
+                    <thead><tr><th>Name</th><th>Title</th><th>Sex</th><th>Batch</th><th>Rating</th><th>Active</th>${canManage ? '<th>Actions</th>' : ''}</tr></thead>
                     <tbody>`;
                 players.forEach(p => {
                     if (editingPlayerId === p.id) {
@@ -564,7 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td>${p.batch || ''}</td>
                             <td>${p.rating}</td>
                             <td>${p.active ? 'Yes' : 'No'}</td>
-                            ${window.isAdmin ? `<td>
+                            ${canManage ? `<td>
                                 <button class="btn btn-outline btn-sm btn-edit-player" data-id="${p.id}" style="margin-right: 0.5rem;">Edit</button>
                                 <button class="btn btn-outline btn-sm btn-delete-player" style="border-color: #ef4444; color: #ef4444;" data-id="${p.id}">Delete</button>
                             </td>` : ''}
@@ -573,6 +729,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (players.length === 0) html += `<tr><td colspan="7" class="text-center text-muted">No players added yet</td></tr>`;
                 html += `</tbody></table></div>`;
+            } else if (activeTab === 'arbiters') {
+                const assignedAdmins = t.admins || [];
+
+                html += `
+                    <div class="grid grid-cols-2 mb-4" style="align-items: start;">
+                        <div class="card">
+                            <h3 class="mb-4">Assigned Arbiters (${assignedAdmins.length})</h3>
+                            <p class="text-muted mb-4" style="font-size: 0.85rem;">Arbiters listed here have permission to add players, pair rounds, and enter match results for this tournament.</p>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Arbiter</th>
+                                            ${canManage ? '<th>Action</th>' : ''}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${assignedAdmins.length === 0 ? '<tr><td colspan="2" class="text-center text-muted">No arbiters assigned yet</td></tr>' : assignedAdmins.map(a => `
+                                            <tr>
+                                                <td><strong>${a.username}</strong></td>
+                                                ${canManage ? `
+                                                    <td>
+                                                        <button class="btn btn-outline btn-sm btn-remove-arbiter" style="border-color: #ef4444; color: #ef4444;" data-id="${a.id}" data-name="${a.username}">
+                                                            Remove
+                                                        </button>
+                                                    </td>
+                                                ` : ''}
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        ${canManage ? `
+                            <div class="card">
+                                <h3 class="mb-4">Assign Existing Arbiter</h3>
+                                <form id="assignArbiterForm">
+                                    <div class="form-group">
+                                        <label class="form-label">Select Arbiter Account</label>
+                                        <select id="selectArbiterId" class="form-control" required>
+                                            <option value="">-- Loading arbiters... --</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" id="btnSubmitAssignArbiter" disabled>Assign to Tournament</button>
+                                </form>
+                                <p class="text-muted mt-4" style="font-size: 0.85rem;">Need a new arbiter account? Create one in <a href="#admins">Admin Management</a>.</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
             }
             
             html += `<div id="playerModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
@@ -583,6 +790,76 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
 
             appRoot.innerHTML = html;
+
+            // If on arbiters tab, fetch arbiters list to populate select dropdown
+            if (activeTab === 'arbiters' && canManage) {
+                fetch('api/admins.php').then(r => r.json()).then(allAdmins => {
+                    const assignedAdmins = t.admins || [];
+                    const select = document.getElementById('selectArbiterId');
+                    const btn = document.getElementById('btnSubmitAssignArbiter');
+                    if (!select) return;
+
+                    const unassigned = (allAdmins || []).filter(a => !assignedAdmins.some(asg => asg.id === a.id) && !a.is_super);
+                    if (unassigned.length === 0) {
+                        select.innerHTML = '<option value="">(All arbiters are already assigned)</option>';
+                        if (btn) btn.disabled = true;
+                    } else {
+                        select.innerHTML = '<option value="">-- Choose Arbiter --</option>' + unassigned.map(a => `<option value="${a.id}">${a.username}</option>`).join('');
+                        if (btn) btn.disabled = false;
+                    }
+                }).catch(() => {});
+
+                const assignForm = document.getElementById('assignArbiterForm');
+                if (assignForm) {
+                    assignForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const selId = document.getElementById('selectArbiterId').value;
+                        if (!selId) return;
+
+                        const res = await fetch('api/tournaments.php', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                action: 'assign_admin',
+                                tournament_id: t.id,
+                                admin_id: parseInt(selId)
+                            })
+                        });
+
+                        if (res.ok) {
+                            renderTournamentDetail(id, 'arbiters');
+                        } else {
+                            const err = await res.json();
+                            alert('Error assigning arbiter: ' + (err.error || 'Unknown error'));
+                        }
+                    });
+                }
+
+                document.querySelectorAll('.btn-remove-arbiter').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const admId = btn.dataset.id;
+                        const admName = btn.dataset.name;
+                        if (!confirm(`Are you sure you want to remove arbiter "${admName}" from this tournament?`)) return;
+
+                        const res = await fetch('api/tournaments.php', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                action: 'remove_admin',
+                                tournament_id: t.id,
+                                admin_id: parseInt(admId)
+                            })
+                        });
+
+                        if (res.ok) {
+                            renderTournamentDetail(id, 'arbiters');
+                        } else {
+                            const err = await res.json();
+                            alert('Error removing arbiter: ' + (err.error || 'Unknown error'));
+                        }
+                    });
+                });
+            }
 
             document.querySelectorAll('.player-link').forEach(el => {
                 el.addEventListener('click', (e) => {

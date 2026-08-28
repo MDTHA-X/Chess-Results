@@ -27,6 +27,9 @@ session_start();
                     <span id="themeIcon">🌙</span>
                 </button>
                 <?php if (isset($_SESSION['admin_id'])): ?>
+                    <?php if (!empty($_SESSION['is_super'])): ?>
+                        <a href="#admins" class="btn btn-outline">Admins</a>
+                    <?php endif; ?>
                     <span class="user-badge"><?= htmlspecialchars($_SESSION['username']) ?></span>
                     <button id="logoutBtn" class="btn btn-outline">Logout</button>
                 <?php else: ?>
@@ -49,7 +52,13 @@ session_start();
     </template>
 
     <script>
+        window.currentUser = <?= json_encode([
+            'id' => $_SESSION['admin_id'] ?? null,
+            'username' => $_SESSION['username'] ?? null,
+            'is_super' => !empty($_SESSION['is_super'])
+        ]) ?>;
         window.isAdmin = <?= isset($_SESSION['admin_id']) ? 'true' : 'false' ?>;
+        window.isSuper = <?= !empty($_SESSION['is_super']) ? 'true' : 'false' ?>;
     </script>
     <script src="assets/app.js"></script>
 </body>

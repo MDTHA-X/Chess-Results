@@ -15,7 +15,6 @@ if ($method === 'GET') {
     $players = DB::fetchAll("SELECT * FROM players WHERE tournament_id = ? ORDER BY name ASC", [$tournament_id]);
     echo json_encode($players);
 } else if ($method === 'POST') {
-    require_login();
     $input = json_decode(file_get_contents('php://input'), true);
     $tournament_id = $input['tournament_id'] ?? null;
     $name = $input['name'] ?? '';
@@ -30,6 +29,8 @@ if ($method === 'GET') {
         exit;
     }
 
+    require_tournament_admin($tournament_id);
+
     try {
         DB::query(
             "INSERT INTO players (tournament_id, name, title, sex, batch, rating) VALUES (?, ?, ?, ?, ?, ?)",
@@ -42,7 +43,6 @@ if ($method === 'GET') {
         echo json_encode(['error' => 'Player name already exists in this tournament']);
     }
 } else if ($method === 'PUT') {
-    require_login();
     $input = json_decode(file_get_contents('php://input'), true);
     $id = $input['id'] ?? null;
     $name = $input['name'] ?? null;
@@ -58,6 +58,14 @@ if ($method === 'GET') {
         exit;
     }
 
+    $pl = DB::fetch("SELECT tournament_id FROM players WHERE id = ?", [$id]);
+    if (!$pl) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Player not found']);
+        exit;
+    }
+    require_tournament_admin($pl['tournament_id']);
+
     try {
         DB::query(
             "UPDATE players SET name = ?, title = ?, sex = ?, batch = ?, rating = ?, active = ? WHERE id = ?",
@@ -69,13 +77,21 @@ if ($method === 'GET') {
         echo json_encode(['error' => 'Failed to update player (name might already exist)']);
     }
 } else if ($method === 'DELETE') {
-    require_login();
     $id = $_GET['id'] ?? null;
     if (!$id) {
         http_response_code(400);
         echo json_encode(['error' => 'id is required']);
         exit;
     }
+
+    $pl = DB::fetch("SELECT tournament_id FROM players WHERE id = ?", [$id]);
+    if (!$pl) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Player not found']);
+        exit;
+    }
+    require_tournament_admin($pl['tournament_id']);
+
     try {
         DB::query("DELETE FROM players WHERE id = ?", [$id]);
         echo json_encode(['success' => true]);

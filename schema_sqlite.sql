@@ -25,6 +25,16 @@ CREATE TABLE IF NOT EXISTS tournaments (
   FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS tournament_admins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tournament_id INTEGER NOT NULL,
+  admin_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE(tournament_id, admin_id),
+  FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+  FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS players (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tournament_id INTEGER NOT NULL,
