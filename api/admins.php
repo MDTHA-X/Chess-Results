@@ -65,14 +65,15 @@ if ($method === 'GET') {
         echo json_encode(['error' => 'Failed to create admin: ' . $e->getMessage()]);
     }
 } else if ($method === 'PUT') {
-    require_super_admin();
+    require_login();
     $input = json_decode(file_get_contents('php://input'), true);
-    $adminId = (int)($input['id'] ?? 0);
+    $adminId = (int)($input['id'] ?? $_SESSION['admin_id']);
     $newPassword = trim($input['password'] ?? '');
     
-    if (!$adminId) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Admin ID is required']);
+    // Each admin/arbiter can ONLY change their own password
+    if ($adminId !== (int)$_SESSION['admin_id']) {
+        http_response_code(403);
+        echo json_encode(['error' => 'You can only change your own password']);
         exit;
     }
     

@@ -189,7 +189,7 @@ tr:hover td { background: var(--tr-hover); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Badges */
-.badge { padding: 0.25rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.badge { padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; display: inline-block; }
 .badge-active { background: rgba(16, 185, 129, 0.2); color: var(--success); }
 .badge-draft { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
 .badge-completed { background: rgba(59, 130, 246, 0.2); color: var(--primary); }

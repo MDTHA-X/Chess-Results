@@ -38,6 +38,7 @@ if (isset($_SESSION['admin_id'])) {
                     <?php if (!empty($_SESSION['is_super'])): ?>
                         <a href="#admins" class="btn btn-outline">Admins</a>
                     <?php endif; ?>
+                    <button id="changeMyPassNavBtn" class="btn btn-outline btn-sm" title="Change My Password" style="padding: 0.4rem 0.7rem; font-size: 0.85rem;">🔑 Password</button>
                     <span class="user-badge"><?= htmlspecialchars($_SESSION['username']) ?></span>
                     <button id="logoutBtn" class="btn btn-outline">Logout</button>
                 <?php else: ?>

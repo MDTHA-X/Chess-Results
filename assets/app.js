@@ -24,6 +24,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const changeMyPassNavBtn = document.getElementById('changeMyPassNavBtn');
+    if (changeMyPassNavBtn) {
+        changeMyPassNavBtn.addEventListener('click', async () => {
+            const newPass = prompt('Enter your new password:');
+            if (!newPass || !newPass.trim()) return;
+            const res = await fetch('api/admins.php', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ password: newPass.trim() })
+            });
+            if (res.ok) {
+                alert('Your password has been changed successfully!');
+            } else {
+                const err = await res.json();
+                alert('Error updating password: ' + (err.error || 'Unknown error'));
+            }
+        });
+    }
+
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             await fetch('api/login.php', { method: 'DELETE' });
@@ -129,37 +148,37 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <th>User</th>
                                     <th>Role</th>
                                     <th>Assigned</th>
-                                    <th>Actions</th>
+                                    <th style="text-align: right; white-space: nowrap;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${admins.map(a => {
-                                    const isSelf = window.currentUser && window.currentUser.id === a.id;
+                                    const isSelf = window.currentUser && (String(window.currentUser.id) === String(a.id) || window.currentUser.username === a.username);
                                     const tourneysList = a.tournaments && a.tournaments.length > 0
                                         ? a.tournaments.map(t => `<span class="badge" style="background: var(--bg-card-hover); margin: 2px 2px; font-size: 0.75rem;">${t.name}</span>`).join(' ')
                                         : (a.is_super ? '<span class="text-muted" style="font-size: 0.8rem;">All Tournaments</span>' : '<span class="text-muted" style="font-size: 0.8rem;">None</span>');
                                     
+                                    let actionBtn = '';
+                                    if (isSelf) {
+                                        actionBtn = `<button class="btn btn-outline btn-sm btn-change-password" data-id="${a.id}" data-name="${a.username}">Change Password</button>`;
+                                    } else {
+                                        actionBtn = `<button class="btn btn-outline btn-sm btn-delete-admin" style="border-color: #ef4444; color: #ef4444;" data-id="${a.id}" data-name="${a.username}">Delete</button>`;
+                                    }
+
                                     return `
                                         <tr>
-                                            <td>
+                                            <td style="white-space: nowrap;">
                                                 <strong>${a.username}</strong>
                                                 ${isSelf ? ' <span class="text-muted" style="font-size: 0.8rem;">(You)</span>' : ''}
                                             </td>
-                                            <td>
+                                            <td style="white-space: nowrap;">
                                                 <span class="badge ${a.is_super ? 'badge-completed' : 'badge-draft'}">
                                                     ${a.is_super ? 'Super Admin' : 'Arbiter'}
                                                 </span>
                                             </td>
                                             <td>${tourneysList}</td>
-                                            <td>
-                                                <button class="btn btn-outline btn-sm btn-change-password" data-id="${a.id}" data-name="${a.username}" style="margin-right: 0.35rem;" title="Change Password">
-                                                    Password
-                                                </button>
-                                                ${!isSelf ? `
-                                                    <button class="btn btn-outline btn-sm btn-delete-admin" style="border-color: #ef4444; color: #ef4444;" data-id="${a.id}" data-name="${a.username}" title="Delete Account">
-                                                        Delete
-                                                    </button>
-                                                ` : '<span class="text-muted" style="font-size: 0.8rem;">Active</span>'}
+                                            <td style="white-space: nowrap; text-align: right;">
+                                                ${actionBtn}
                                             </td>
                                         </tr>
                                     `;
