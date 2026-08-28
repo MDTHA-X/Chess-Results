@@ -217,20 +217,24 @@ document.addEventListener('DOMContentLoaded', () => {
         function renderStandingsTable(stList) {
             let sHtml = `<div class="card table-container"><table>
                 <thead><tr>
-                    <th>Rk</th><th>SNo</th><th>Name</th><th>Rating</th><th>Pts</th><th>BH-1</th><th>BH</th>
+                    <th>Rk</th><th>SNo</th><th>Title</th><th>Name</th><th>Rating</th><th>Pts</th><th>BH-1</th><th>BH</th><th>SB</th>
                 </tr></thead><tbody>`;
             stList.forEach((st, i) => {
+                const pl = players.find(x => x.id == st.playerId) || {};
+                const title = st.title || pl.title || '';
                 sHtml += `<tr>
                     <td>${i + 1}</td>
                     <td>${playerSeeds[st.playerId]}</td>
+                    <td style="font-weight: 600; color: var(--primary);">${title}</td>
                     <td><a href="#" class="player-link" data-id="${st.playerId}" style="color: var(--primary); text-decoration: none;">${st.name}</a></td>
                     <td>${st.rating}</td>
                     <td style="font-weight: bold;">${st.score}</td>
                     <td>${st.medianBuchholz}</td>
                     <td>${st.buchholz}</td>
+                    <td>${st.sonnebornBerger ?? 0}</td>
                 </tr>`;
             });
-            if (stList.length === 0) sHtml += `<tr><td colspan="7" class="text-center text-muted">No standings available yet</td></tr>`;
+            if (stList.length === 0) sHtml += `<tr><td colspan="9" class="text-center text-muted">No standings available yet</td></tr>`;
             sHtml += `</tbody></table></div>`;
             return sHtml;
         }
@@ -250,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const pl = players.find(x => x.id == pId);
             if (!pl) return 'Unknown';
             const titleStr = pl.title ? pl.title + ' ' : '';
-            return `(${playerSeeds[pl.id]}) ${titleStr}${pl.name} (${pl.rating})`;
+            return `(${playerSeeds[pl.id]}) <a href="#" class="player-link" data-id="${pl.id}" style="color: var(--primary); text-decoration: none;">${titleStr}${pl.name}</a> (${pl.rating})`;
         }
 
         function getFideDp(p) {

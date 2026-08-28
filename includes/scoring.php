@@ -159,6 +159,7 @@ function computeStandings($players, $games) {
         $standings[] = [
             'playerId' => $p['id'],
             'name' => $p['name'],
+            'title' => $p['title'] ?? '',
             'rating' => $p['rating'],
             'ratingType' => $p['rating_type'],
             'score' => $a['score'],
