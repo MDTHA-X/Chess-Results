@@ -44,10 +44,9 @@ if ($method === 'GET') {
     $action = $input['action'] ?? 'create';
 
     if ($action === 'assign_admin') {
+        require_super_admin();
         $tournament_id = (int)($input['tournament_id'] ?? 0);
         $admin_id = (int)($input['admin_id'] ?? 0);
-        
-        require_tournament_admin($tournament_id);
         
         if (!$tournament_id || !$admin_id) {
             http_response_code(400);
@@ -71,10 +70,9 @@ if ($method === 'GET') {
         echo json_encode(['success' => true]);
         exit;
     } else if ($action === 'remove_admin') {
+        require_super_admin();
         $tournament_id = (int)($input['tournament_id'] ?? 0);
         $admin_id = (int)($input['admin_id'] ?? 0);
-        
-        require_tournament_admin($tournament_id);
         
         if (!$tournament_id || !$admin_id) {
             http_response_code(400);

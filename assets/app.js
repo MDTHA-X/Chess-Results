@@ -788,39 +788,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `</tbody></table></div>`;
             } else if (activeTab === 'arbiters') {
                 const assignedAdmins = (t.admins || []).filter(a => !a.is_super);
+                const isSuper = Boolean(window.isSuper);
 
-                html += `
-                    <div class="grid grid-cols-2 mb-4" style="align-items: start;">
-                        <div class="card">
-                            <h3 class="mb-4">Assigned Arbiters (${assignedAdmins.length})</h3>
-                            <p class="text-muted mb-4" style="font-size: 0.85rem;">Arbiters listed here have permission to add players, pair rounds, and enter match results for this tournament.</p>
-                            <div class="table-container">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Arbiter</th>
-                                            ${canManage ? '<th>Action</th>' : ''}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${assignedAdmins.length === 0 ? '<tr><td colspan="2" class="text-center text-muted">No arbiters assigned yet</td></tr>' : assignedAdmins.map(a => `
+                if (isSuper) {
+                    html += `
+                        <div class="grid grid-cols-2 mb-4" style="align-items: start;">
+                            <div class="card">
+                                <h3 class="mb-4">Assigned Arbiters (${assignedAdmins.length})</h3>
+                                <p class="text-muted mb-4" style="font-size: 0.85rem;">Arbiters listed here have permission to add players, pair rounds, and enter match results for this tournament.</p>
+                                <div class="table-container">
+                                    <table>
+                                        <thead>
                                             <tr>
-                                                <td><strong>${a.username}</strong></td>
-                                                ${canManage ? `
-                                                    <td>
+                                                <th>Arbiter</th>
+                                                <th style="text-align: right; white-space: nowrap;">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${assignedAdmins.length === 0 ? '<tr><td colspan="2" class="text-center text-muted">No arbiters assigned yet</td></tr>' : assignedAdmins.map(a => `
+                                                <tr>
+                                                    <td><strong>${a.username}</strong></td>
+                                                    <td style="text-align: right; white-space: nowrap;">
                                                         <button class="btn btn-outline btn-sm btn-remove-arbiter" style="border-color: #ef4444; color: #ef4444;" data-id="${a.id}" data-name="${a.username}">
                                                             Remove
                                                         </button>
                                                     </td>
-                                                ` : ''}
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
 
-                        ${canManage ? `
                             <div class="card">
                                 <h3 class="mb-4">Assign Existing Arbiter</h3>
                                 <form id="assignArbiterForm">
@@ -834,9 +833,32 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </form>
                                 <p class="text-muted mt-4" style="font-size: 0.85rem;">Need a new arbiter account? Create one in <a href="#admins">Admin Management</a>.</p>
                             </div>
-                        ` : ''}
-                    </div>
-                `;
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="card mb-4" style="max-width: 600px;">
+                            <h3 class="mb-4">Assigned Arbiters (${assignedAdmins.length})</h3>
+                            <p class="text-muted mb-4" style="font-size: 0.85rem;">Arbiters authorized to manage this tournament:</p>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Arbiter</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${assignedAdmins.length === 0 ? '<tr><td class="text-center text-muted">No arbiters assigned yet</td></tr>' : assignedAdmins.map(a => `
+                                            <tr>
+                                                <td><strong>${a.username}</strong></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
             }
             
             html += `<div id="playerModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
@@ -848,10 +870,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             appRoot.innerHTML = html;
 
-            // If on arbiters tab, fetch arbiters list to populate select dropdown
-            if (activeTab === 'arbiters' && canManage) {
+            // If on arbiters tab and super admin, fetch arbiters list to populate select dropdown
+            if (activeTab === 'arbiters' && window.isSuper) {
                 fetch('api/admins.php').then(r => r.json()).then(allAdmins => {
-                    const assignedAdmins = t.admins || [];
+                    const assignedAdmins = (t.admins || []).filter(a => !a.is_super);
                     const select = document.getElementById('selectArbiterId');
                     const btn = document.getElementById('btnSubmitAssignArbiter');
                     if (!select) return;
