@@ -1,6 +1,28 @@
 document.addEventListener('DOMContentLoaded', () => {
     const appRoot = document.getElementById('app-root');
     const logoutBtn = document.getElementById('logoutBtn');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+
+    function updateThemeIcon(theme) {
+        if (!themeIcon) return;
+        themeIcon.textContent = theme === 'light' ? '☀️' : '🌙';
+        if (themeToggleBtn) {
+            themeToggleBtn.setAttribute('title', theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode');
+        }
+    }
+
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    updateThemeIcon(currentTheme);
+
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            const nextTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('theme', nextTheme);
+            updateThemeIcon(nextTheme);
+        });
+    }
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {

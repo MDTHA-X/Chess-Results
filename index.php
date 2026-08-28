@@ -6,17 +6,26 @@ session_start();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Celia - Chess Tournament Manager</title>
+    <title>Chess Results - Tournament Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/style.css">
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-container">
-            <a href="#" class="brand">♔ Celia</a>
-            <div class="nav-links">
+            <a href="#" class="brand">♔ Chess Results</a>
+            <div class="nav-links flex items-center gap-2">
+                <button id="themeToggleBtn" class="btn btn-outline" title="Toggle Theme" style="padding: 0.45rem 0.8rem; font-size: 1.1rem; line-height: 1; border-radius: 8px;">
+                    <span id="themeIcon">🌙</span>
+                </button>
                 <?php if (isset($_SESSION['admin_id'])): ?>
                     <span class="user-badge">Admin: <?= htmlspecialchars($_SESSION['username']) ?></span>
                     <button id="logoutBtn" class="btn btn-outline">Logout</button>
