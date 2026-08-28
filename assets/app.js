@@ -367,6 +367,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     async function renderTournaments() {
         const res = await fetch('api/tournaments.php');
         const tournaments = await res.json();
@@ -383,22 +388,151 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div class="card"><p class="text-muted text-center">No tournaments found.</p></div>`;
         } else {
             tournaments.forEach(t => {
+                const canManage = Boolean(window.isSuper || t.can_manage);
+
                 html += `
-                    <a href="#tournament/${t.id}" class="card" style="display: block; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s;">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 style="color: var(--text-main); margin: 0; font-size: 1.15rem;">${t.name}</h3>
-                            <span class="badge badge-${t.status}">${t.status}</span>
-                        </div>
-                        <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
-                            Rounds: ${t.rounds_count} &nbsp;&bull;&nbsp; Time Control: ${t.time_control}
-                        </p>
-                    </a>
+                    <div class="card flex justify-between items-center" style="padding: 1.2rem 1.5rem; transition: transform 0.2s, box-shadow 0.2s;">
+                        <a href="#tournament/${t.id}" style="text-decoration: none; flex: 1; min-width: 0;">
+                            <div class="flex items-center gap-3 mb-2">
+                                <h3 style="color: var(--text-main); margin: 0; font-size: 1.15rem;">${t.name}</h3>
+                                <span class="badge badge-${t.status}">${t.status}</span>
+                            </div>
+                            <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+                                Rounds: ${t.rounds_count} &nbsp;&bull;&nbsp; Time Control: ${t.time_control}
+                            </p>
+                        </a>
+                        ${canManage ? `
+                            <div class="flex gap-2 items-center" style="margin-left: 1.25rem; white-space: nowrap;">
+                                <button class="btn btn-outline btn-sm btn-edit-tournament" data-id="${t.id}" data-name="${escapeHtml(t.name)}" data-time="${escapeHtml(t.time_control)}" data-rounds="${t.rounds_count}" data-status="${t.status}">
+                                    Edit
+                                </button>
+                                <button class="btn btn-outline btn-sm btn-delete-tournament" style="border-color: #ef4444; color: #ef4444;" data-id="${t.id}" data-name="${escapeHtml(t.name)}">
+                                    Delete
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
                 `;
             });
         }
         
         html += `</div>`;
+
+        // Edit Tournament Modal markup
+        html += `
+            <div id="editTournamentModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+                <div class="modal-content card" style="margin: 5% auto; padding: 25px; width: 90%; max-width: 500px; position: relative;">
+                    <span class="close-edit-modal" style="position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+                    <h3 class="mb-4">Edit Tournament Details</h3>
+                    <form id="editTournamentForm">
+                        <input type="hidden" id="editTournamentId">
+                        <div class="form-group">
+                            <label class="form-label">Tournament Name</label>
+                            <input type="text" id="editTournamentName" class="form-control" required>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="form-group">
+                                <label class="form-label">Total Rounds</label>
+                                <input type="number" id="editTournamentRounds" class="form-control" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Time Control</label>
+                                <input type="text" id="editTournamentTime" class="form-control" required placeholder="e.g. 10+5">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select id="editTournamentStatus" class="form-control">
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-between items-center mt-4">
+                            <button type="button" class="btn btn-outline close-edit-modal-btn">Cancel</button>
+                            <button type="submit" class="btn btn-primary" id="btnSaveTournamentEdit">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
         appRoot.innerHTML = html;
+
+        // Modal bindings
+        const editModal = document.getElementById('editTournamentModal');
+        if (editModal) {
+            const closeModal = () => { editModal.style.display = 'none'; };
+            editModal.querySelectorAll('.close-edit-modal, .close-edit-modal-btn').forEach(el => el.addEventListener('click', closeModal));
+            window.addEventListener('click', (e) => {
+                if (e.target === editModal) closeModal();
+            });
+
+            document.querySelectorAll('.btn-edit-tournament').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.getElementById('editTournamentId').value = btn.dataset.id;
+                    document.getElementById('editTournamentName').value = btn.dataset.name;
+                    document.getElementById('editTournamentTime').value = btn.dataset.time;
+                    document.getElementById('editTournamentRounds').value = btn.dataset.rounds;
+                    document.getElementById('editTournamentStatus').value = btn.dataset.status;
+                    editModal.style.display = 'block';
+                });
+            });
+
+            document.getElementById('editTournamentForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const saveBtn = document.getElementById('btnSaveTournamentEdit');
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving...';
+
+                const tId = parseInt(document.getElementById('editTournamentId').value);
+                const name = document.getElementById('editTournamentName').value.trim();
+                const time_control = document.getElementById('editTournamentTime').value.trim();
+                const rounds_count = parseInt(document.getElementById('editTournamentRounds').value);
+                const status = document.getElementById('editTournamentStatus').value;
+
+                const res = await fetch('api/tournaments.php', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        id: tId,
+                        name,
+                        time_control,
+                        rounds_count,
+                        status
+                    })
+                });
+
+                if (res.ok) {
+                    closeModal();
+                    renderTournaments();
+                } else {
+                    const err = await res.json();
+                    alert('Error updating tournament: ' + (err.error || 'Unknown error'));
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save Changes';
+                }
+            });
+        }
+
+        // Delete Tournament bindings
+        document.querySelectorAll('.btn-delete-tournament').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const tId = btn.dataset.id;
+                const tName = btn.dataset.name;
+                if (!confirm(`Are you sure you want to permanently delete tournament "${tName}"?\n\nWARNING: This will permanently delete all players, rounds, pairings, and match history for this tournament!`)) return;
+
+                const res = await fetch(`api/tournaments.php?id=${tId}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    renderTournaments();
+                } else {
+                    const err = await res.json();
+                    alert('Error deleting tournament: ' + (err.error || 'Unknown error'));
+                }
+            });
+        });
     }
 
     function renderNewTournament() {

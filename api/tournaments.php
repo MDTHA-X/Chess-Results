@@ -120,6 +120,55 @@ if ($method === 'GET') {
         http_response_code(400);
         echo json_encode(['error' => 'Slug already exists or database error: ' . $e->getMessage()]);
     }
+} else if ($method === 'PUT') {
+    require_login();
+    $input = json_decode(file_get_contents('php://input'), true);
+    $id = (int)($input['id'] ?? 0);
+    
+    if (!$id) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Tournament ID is required']);
+        exit;
+    }
+    
+    require_tournament_admin($id);
+    
+    $name = trim($input['name'] ?? '');
+    $time_control = trim($input['time_control'] ?? '10+5');
+    $rounds_count = (int)($input['rounds_count'] ?? 7);
+    $status = trim($input['status'] ?? 'active');
+    
+    if (empty($name)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Tournament name is required']);
+        exit;
+    }
+    
+    DB::query("UPDATE tournaments SET name = ?, time_control = ?, rounds_count = ?, status = ? WHERE id = ?", [
+        $name,
+        $time_control,
+        $rounds_count,
+        $status,
+        $id
+    ]);
+    
+    $updated = DB::fetch("SELECT * FROM tournaments WHERE id = ?", [$id]);
+    $updated['can_manage'] = true;
+    echo json_encode($updated);
+} else if ($method === 'DELETE') {
+    require_login();
+    $id = (int)($_GET['id'] ?? 0);
+    
+    if (!$id) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Tournament ID is required']);
+        exit;
+    }
+    
+    require_tournament_admin($id);
+    
+    DB::query("DELETE FROM tournaments WHERE id = ?", [$id]);
+    echo json_encode(['success' => true]);
 } else {
     http_response_code(405);
     echo json_encode(['error' => 'Method Not Allowed']);
