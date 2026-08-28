@@ -787,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (players.length === 0) html += `<tr><td colspan="7" class="text-center text-muted">No players added yet</td></tr>`;
                 html += `</tbody></table></div>`;
             } else if (activeTab === 'arbiters') {
-                const assignedAdmins = t.admins || [];
+                const assignedAdmins = (t.admins || []).filter(a => !a.is_super);
 
                 html += `
                     <div class="grid grid-cols-2 mb-4" style="align-items: start;">

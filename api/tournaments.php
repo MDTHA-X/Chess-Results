@@ -17,7 +17,7 @@ if ($method === 'GET') {
         }
         $tId = (int)$tournament['id'];
         $tournament['can_manage'] = can_manage_tournament($tId);
-        $tournament['admins'] = DB::fetchAll("SELECT a.id, a.username FROM tournament_admins ta JOIN admins a ON ta.admin_id = a.id WHERE ta.tournament_id = ?", [$tId]);
+        $tournament['admins'] = DB::fetchAll("SELECT a.id, a.username, a.is_super FROM tournament_admins ta JOIN admins a ON ta.admin_id = a.id WHERE ta.tournament_id = ? AND (a.is_super = 0 OR a.is_super IS NULL)", [$tId]);
         echo json_encode($tournament);
     } else if ($id) {
         $tournament = DB::fetch("SELECT * FROM tournaments WHERE id = ?", [$id]);
@@ -28,7 +28,7 @@ if ($method === 'GET') {
         }
         $tId = (int)$tournament['id'];
         $tournament['can_manage'] = can_manage_tournament($tId);
-        $tournament['admins'] = DB::fetchAll("SELECT a.id, a.username FROM tournament_admins ta JOIN admins a ON ta.admin_id = a.id WHERE ta.tournament_id = ?", [$tId]);
+        $tournament['admins'] = DB::fetchAll("SELECT a.id, a.username, a.is_super FROM tournament_admins ta JOIN admins a ON ta.admin_id = a.id WHERE ta.tournament_id = ? AND (a.is_super = 0 OR a.is_super IS NULL)", [$tId]);
         echo json_encode($tournament);
     } else {
         $tournaments = DB::fetchAll("SELECT * FROM tournaments ORDER BY created_at DESC");
@@ -52,6 +52,13 @@ if ($method === 'GET') {
         if (!$tournament_id || !$admin_id) {
             http_response_code(400);
             echo json_encode(['error' => 'Tournament ID and Admin ID are required']);
+            exit;
+        }
+        
+        $targetAdm = DB::fetch("SELECT is_super FROM admins WHERE id = ?", [$admin_id]);
+        if ($targetAdm && !empty($targetAdm['is_super'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Super Admins already have access to all tournaments by default']);
             exit;
         }
         
@@ -99,10 +106,13 @@ if ($method === 'GET') {
             [$name, $slug, $type, $time_control, $rounds_count, $admin_id, time()]
         );
         $id = DB::get()->lastInsertId();
-        try {
-            DB::query("INSERT OR IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$id, $admin_id, time()]);
-        } catch (\Exception $e) {
-            DB::query("INSERT IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$id, $admin_id, time()]);
+        
+        if (!is_super_admin()) {
+            try {
+                DB::query("INSERT OR IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$id, $admin_id, time()]);
+            } catch (\Exception $e) {
+                DB::query("INSERT IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$id, $admin_id, time()]);
+            }
         }
         
         $created = DB::fetch("SELECT * FROM tournaments WHERE id = ?", [$id]);
