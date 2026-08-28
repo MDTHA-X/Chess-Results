@@ -27,7 +27,7 @@ session_start();
                     <span id="themeIcon">🌙</span>
                 </button>
                 <?php if (isset($_SESSION['admin_id'])): ?>
-                    <span class="user-badge">Admin: <?= htmlspecialchars($_SESSION['username']) ?></span>
+                    <span class="user-badge"><?= htmlspecialchars($_SESSION['username']) ?></span>
                     <button id="logoutBtn" class="btn btn-outline">Logout</button>
                 <?php else: ?>
                     <a href="#login" class="btn btn-primary">Login</a>
