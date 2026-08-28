@@ -85,6 +85,7 @@ if ($method === 'GET') {
         exit;
     }
 
+    require_super_admin();
     $name = $input['name'] ?? '';
     $slug = $input['slug'] ?? '';
     $type = $input['type'] ?? 'intradept';
@@ -105,14 +106,6 @@ if ($method === 'GET') {
         );
         $id = DB::get()->lastInsertId();
         
-        if (!is_super_admin()) {
-            try {
-                DB::query("INSERT OR IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$id, $admin_id, time()]);
-            } catch (\Exception $e) {
-                DB::query("INSERT IGNORE INTO tournament_admins (tournament_id, admin_id, created_at) VALUES (?, ?, ?)", [$id, $admin_id, time()]);
-            }
-        }
-        
         $created = DB::fetch("SELECT * FROM tournaments WHERE id = ?", [$id]);
         $created['can_manage'] = true;
         echo json_encode($created);
@@ -121,7 +114,7 @@ if ($method === 'GET') {
         echo json_encode(['error' => 'Slug already exists or database error: ' . $e->getMessage()]);
     }
 } else if ($method === 'PUT') {
-    require_login();
+    require_super_admin();
     $input = json_decode(file_get_contents('php://input'), true);
     $id = (int)($input['id'] ?? 0);
     
@@ -130,8 +123,6 @@ if ($method === 'GET') {
         echo json_encode(['error' => 'Tournament ID is required']);
         exit;
     }
-    
-    require_tournament_admin($id);
     
     $name = trim($input['name'] ?? '');
     $time_control = trim($input['time_control'] ?? '10+5');
@@ -156,7 +147,7 @@ if ($method === 'GET') {
     $updated['can_manage'] = true;
     echo json_encode($updated);
 } else if ($method === 'DELETE') {
-    require_login();
+    require_super_admin();
     $id = (int)($_GET['id'] ?? 0);
     
     if (!$id) {
@@ -164,8 +155,6 @@ if ($method === 'GET') {
         echo json_encode(['error' => 'Tournament ID is required']);
         exit;
     }
-    
-    require_tournament_admin($id);
     
     DB::query("DELETE FROM tournaments WHERE id = ?", [$id]);
     echo json_encode(['success' => true]);

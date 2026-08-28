@@ -55,6 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             renderAdmins();
         } else if (hash === '#new-tournament') {
+            if (!window.isSuper) {
+                window.location.hash = '#tournaments';
+                return;
+            }
             renderNewTournament();
         } else if (hash.startsWith('#tournament/')) {
             const id = hash.split('/')[1];
@@ -379,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = `
             <div class="page-header">
                 <h1>Tournaments</h1>
-                ${window.isAdmin ? '<a href="#new-tournament" class="btn btn-primary">+ New Tournament</a>' : ''}
+                ${window.isSuper ? '<a href="#new-tournament" class="btn btn-primary">+ New Tournament</a>' : ''}
             </div>
             <div class="flex" style="flex-direction: column; gap: 1rem;">
         `;
@@ -388,8 +392,6 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div class="card"><p class="text-muted text-center">No tournaments found.</p></div>`;
         } else {
             tournaments.forEach(t => {
-                const canManage = Boolean(window.isSuper || t.can_manage);
-
                 html += `
                     <div class="card flex justify-between items-center" style="padding: 1.2rem 1.5rem; transition: transform 0.2s, box-shadow 0.2s;">
                         <a href="#tournament/${t.id}" style="text-decoration: none; flex: 1; min-width: 0;">
@@ -401,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 Rounds: ${t.rounds_count} &nbsp;&bull;&nbsp; Time Control: ${t.time_control}
                             </p>
                         </a>
-                        ${canManage ? `
+                        ${window.isSuper ? `
                             <div class="flex gap-2 items-center" style="margin-left: 1.25rem; white-space: nowrap;">
                                 <button class="btn btn-outline btn-sm btn-edit-tournament" data-id="${t.id}" data-name="${escapeHtml(t.name)}" data-time="${escapeHtml(t.time_control)}" data-rounds="${t.rounds_count}" data-status="${t.status}">
                                     Edit
@@ -536,6 +538,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderNewTournament() {
+        if (!window.isSuper) {
+            window.location.hash = '#tournaments';
+            return;
+        }
+
         appRoot.innerHTML = `
             <div class="card" style="max-width: 600px; margin: 0 auto;">
                 <h2 class="mb-4">Create Tournament</h2>
