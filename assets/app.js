@@ -24,25 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const changeMyPassNavBtn = document.getElementById('changeMyPassNavBtn');
-    if (changeMyPassNavBtn) {
-        changeMyPassNavBtn.addEventListener('click', async () => {
-            const newPass = prompt('Enter your new password:');
-            if (!newPass || !newPass.trim()) return;
-            const res = await fetch('api/admins.php', {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ password: newPass.trim() })
-            });
-            if (res.ok) {
-                alert('Your password has been changed successfully!');
-            } else {
-                const err = await res.json();
-                alert('Error updating password: ' + (err.error || 'Unknown error'));
-            }
-        });
-    }
-
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             await fetch('api/login.php', { method: 'DELETE' });
@@ -63,6 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (hash === '#login') {
             renderLogin();
+        } else if (hash === '#change-password') {
+            renderChangePassword();
         } else if (hash === '#tournaments') {
             renderTournaments();
         } else if (hash === '#admins') {
@@ -79,6 +62,112 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             appRoot.innerHTML = '<div class="card text-center"><h1>404 Not Found</h1></div>';
         }
+    }
+
+    function renderChangePassword() {
+        if (!window.isAdmin) {
+            window.location.hash = '#login';
+            return;
+        }
+
+        const username = window.currentUser && window.currentUser.username ? window.currentUser.username : 'Your Account';
+
+        appRoot.innerHTML = `
+            <div class="card" style="max-width: 440px; margin: 3rem auto; padding: 2rem;">
+                <div class="text-center mb-4">
+                    <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔑</div>
+                    <h2 style="margin-bottom: 0.25rem;">Change Password</h2>
+                    <p class="text-muted" style="font-size: 0.9rem;">Logged in as <strong>${username}</strong></p>
+                </div>
+
+                <div id="changePassAlert" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.9rem;"></div>
+
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label class="form-label">Current (Old) Password</label>
+                        <input type="password" id="oldPassword" class="form-control" required placeholder="Enter current password" autocomplete="current-password">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">New Password</label>
+                        <input type="password" id="newPassword" class="form-control" required placeholder="Enter new password" autocomplete="new-password">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" id="confirmPassword" class="form-control" required placeholder="Re-enter new password" autocomplete="new-password">
+                    </div>
+
+                    <button type="submit" id="btnSubmitChangePass" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">Update Password</button>
+                </form>
+            </div>
+        `;
+
+        const form = document.getElementById('changePasswordForm');
+        const alertBox = document.getElementById('changePassAlert');
+        const submitBtn = document.getElementById('btnSubmitChangePass');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            alertBox.style.display = 'none';
+
+            const oldPass = document.getElementById('oldPassword').value;
+            const newPass = document.getElementById('newPassword').value;
+            const confirmPass = document.getElementById('confirmPassword').value;
+
+            if (newPass !== confirmPass) {
+                alertBox.style.display = 'block';
+                alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+                alertBox.style.color = '#ef4444';
+                alertBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                alertBox.textContent = 'New passwords do not match. Please re-enter.';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Updating...';
+
+            try {
+                const res = await fetch('api/admins.php', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        old_password: oldPass,
+                        new_password: newPass,
+                        confirm_password: confirmPass
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alertBox.style.display = 'block';
+                    alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
+                    alertBox.style.color = 'var(--success)';
+                    alertBox.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                    alertBox.textContent = 'Password changed successfully! Redirecting...';
+                    form.reset();
+                    setTimeout(() => {
+                        window.location.hash = '#tournaments';
+                    }, 1200);
+                } else {
+                    alertBox.style.display = 'block';
+                    alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+                    alertBox.style.color = '#ef4444';
+                    alertBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                    alertBox.textContent = data.error || 'Failed to update password.';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Update Password';
+                }
+            } catch (err) {
+                alertBox.style.display = 'block';
+                alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+                alertBox.style.color = '#ef4444';
+                alertBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                alertBox.textContent = 'Network error while updating password.';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Password';
+            }
+        });
     }
 
     async function renderAdmins() {
@@ -160,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     
                                     let actionBtn = '';
                                     if (isSelf) {
-                                        actionBtn = `<button class="btn btn-outline btn-sm btn-change-password" data-id="${a.id}" data-name="${a.username}">Change Password</button>`;
+                                        actionBtn = `<a href="#change-password" class="btn btn-outline btn-sm">Change Password</a>`;
                                     } else {
                                         actionBtn = `<button class="btn btn-outline btn-sm btn-delete-admin" style="border-color: #ef4444; color: #ef4444;" data-id="${a.id}" data-name="${a.username}">Delete</button>`;
                                     }
@@ -217,32 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const err = await res.json();
                 alert('Error creating admin: ' + (err.error || 'Unknown error'));
             }
-        });
-
-        // Bind change password buttons
-        document.querySelectorAll('.btn-change-password').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const admId = btn.dataset.id;
-                const admName = btn.dataset.name;
-                const newPass = prompt(`Enter new password for "${admName}":`);
-                if (!newPass || !newPass.trim()) return;
-
-                const res = await fetch('api/admins.php', {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        id: parseInt(admId),
-                        password: newPass.trim()
-                    })
-                });
-
-                if (res.ok) {
-                    alert(`Password updated successfully for "${admName}"!`);
-                } else {
-                    const err = await res.json();
-                    alert('Error updating password: ' + (err.error || 'Unknown error'));
-                }
-            });
         });
 
         // Bind delete buttons

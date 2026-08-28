@@ -67,13 +67,14 @@ if ($method === 'GET') {
 } else if ($method === 'PUT') {
     require_login();
     $input = json_decode(file_get_contents('php://input'), true);
-    $adminId = (int)($input['id'] ?? $_SESSION['admin_id']);
-    $newPassword = trim($input['password'] ?? '');
+    $adminId = (int)$_SESSION['admin_id'];
+    $oldPassword = $input['old_password'] ?? '';
+    $newPassword = trim($input['new_password'] ?? ($input['password'] ?? ''));
+    $confirmPassword = trim($input['confirm_password'] ?? $newPassword);
     
-    // Each admin/arbiter can ONLY change their own password
-    if ($adminId !== (int)$_SESSION['admin_id']) {
-        http_response_code(403);
-        echo json_encode(['error' => 'You can only change your own password']);
+    if (empty($oldPassword)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Current password is required']);
         exit;
     }
     
@@ -83,10 +84,24 @@ if ($method === 'GET') {
         exit;
     }
     
+    if ($newPassword !== $confirmPassword) {
+        http_response_code(400);
+        echo json_encode(['error' => 'New passwords do not match']);
+        exit;
+    }
+    
+    // Verify old password
+    $user = DB::fetch("SELECT * FROM admins WHERE id = ?", [$adminId]);
+    if (!$user || !password_verify($oldPassword, $user['password_hash'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Current password is incorrect']);
+        exit;
+    }
+    
     $hash = password_hash($newPassword, PASSWORD_DEFAULT);
     DB::query("UPDATE admins SET password_hash = ? WHERE id = ?", [$hash, $adminId]);
     
-    echo json_encode(['success' => true]);
+    echo json_encode(['success' => true, 'message' => 'Password updated successfully']);
 } else if ($method === 'DELETE') {
     require_super_admin();
     $id = (int)($_GET['id'] ?? 0);
